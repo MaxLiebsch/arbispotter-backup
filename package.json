@@ -17,9 +17,9 @@
     "start:dev": "cross-env NODE_ENV=development node ./dist/index.js",
     "dev": "cross-env NODE_ENV=development nodemon --ignore ./var/ --exec ts-node src/index.ts",
     "fix": "gts fix",
-    "prepare": "yarn.cmd run compile",
-    "pretest": "yarn.cmd run compile",
-    "posttest": "yarn.cmd run lint"
+    "prepare": "yarn run compile",
+    "pretest": "yarn run compile",
+    "posttest": "yarn run lint"
   },
   "name": "arbispotter-backup",
   "version": "0.0.1",

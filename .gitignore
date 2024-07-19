@@ -1,0 +1,5 @@
+.env*
+dist
+var/
+
+node_modules

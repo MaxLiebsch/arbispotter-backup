@@ -1,7 +1,15 @@
 import 'dotenv/config';
 import {config} from 'dotenv';
 import cron from 'node-cron';
-import {append, cwd, write, list, inspect, remove, appendAsync} from 'fs-jetpack';
+import {
+  append,
+  cwd,
+  write,
+  list,
+  inspect,
+  remove,
+  appendAsync,
+} from 'fs-jetpack';
 import {join} from 'path';
 import clientPool from './mongoPool';
 import {Db} from 'mongodb';
@@ -22,24 +30,30 @@ const arbispotter_db = 'arbispotter';
 const crawl_data_db = 'crawler-data';
 const dbs = [arbispotter_db, crawl_data_db];
 
-async function storeDocuments(db: Db, colName: string, limit: number, backupPath: string) {
+async function storeDocuments(
+  db: Db,
+  colName: string,
+  batchSize: number,
+  backupPath: string
+) {
   let hasMoreDocouments = true;
-  let batchSize = 500;
   let page = 0;
   while (hasMoreDocouments) {
     const documents = await db
       .collection(colName)
       .find({})
-      .limit(limit ?? 500)
-      .skip(page * limit)
+      .limit(batchSize ?? 500)
+      .skip(page * batchSize)
       .toArray();
     if (documents.length) {
-      await appendAsync(backupPath, documents.map(doc => JSON.stringify(doc)).join('\n'));
+      await appendAsync(
+        backupPath,
+        documents.map(doc => JSON.stringify(doc)).join('\n')
+      );
     }
     hasMoreDocouments = documents.length === batchSize;
     page++;
   }
-  
 }
 
 async function backupDatabase(dbName: string) {
@@ -52,7 +66,7 @@ async function backupDatabase(dbName: string) {
       const filename = `${dbName}-${colName}-${timestamp}.json`;
       const backupPath = getPath(join(BACKUP_DIR, filename));
       try {
-        await storeDocuments(client.db(), colName, 500, backupPath);
+        await storeDocuments(client.db(), colName, 250, backupPath);
         append(
           getPath(LOG_FILE),
           `[${new Date().toISOString()}] Collection: ${colName} Backup completed: ${backupPath}\n`
@@ -102,6 +116,7 @@ function getPath(path: string) {
 }
 
 async function createBackup() {
+  console.log('Creating backup...');
   try {
     dbs.forEach(async dbName => {
       await backupDatabase(dbName);
@@ -153,13 +168,13 @@ console.log(
   ' - ',
   interval
 );
-if(process.env.PROD_QUICKTEST === 'true'){
-  async function test(){
+if (process.env.QUICKTEST === 'true') {
+  async function test() {
     await createBackup();
     await cleanOldBackups();
   }
   test().then();
-}else{
+} else {
   cron.schedule(interval, async () => {
     await createBackup();
     await cleanOldBackups();

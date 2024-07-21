@@ -158,7 +158,7 @@ if(process.env.PROD_QUICKTEST === 'true'){
     await createBackup();
     await cleanOldBackups();
   }
-  test();
+  test().then();
 }else{
   cron.schedule(interval, async () => {
     await createBackup();

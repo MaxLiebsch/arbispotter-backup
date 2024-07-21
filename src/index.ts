@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import {config} from 'dotenv';
 import cron from 'node-cron';
-import {append, cwd, write, list, inspect, remove} from 'fs-jetpack';
+import {append, cwd, write, list, inspect, remove, appendAsync} from 'fs-jetpack';
 import {join} from 'path';
 import clientPool from './mongoPool';
 import {Db} from 'mongodb';
@@ -22,9 +22,8 @@ const arbispotter_db = 'arbispotter';
 const crawl_data_db = 'crawler-data';
 const dbs = [arbispotter_db, crawl_data_db];
 
-async function requestDocuments(db: Db, colName: string, limit: number) {
+async function storeDocuments(db: Db, colName: string, limit: number, backupPath: string) {
   let hasMoreDocouments = true;
-  let allDocuments: any[] = [];
   let batchSize = 500;
   let page = 0;
   while (hasMoreDocouments) {
@@ -35,12 +34,12 @@ async function requestDocuments(db: Db, colName: string, limit: number) {
       .skip(page * limit)
       .toArray();
     if (documents.length) {
-      allDocuments.push(...documents);
+      await appendAsync(backupPath, documents.map(doc => JSON.stringify(doc)).join('\n'));
     }
     hasMoreDocouments = documents.length === batchSize;
     page++;
   }
-  return allDocuments;
+  
 }
 
 async function backupDatabase(dbName: string) {
@@ -49,13 +48,11 @@ async function backupDatabase(dbName: string) {
     const collections = await client.db().listCollections().toArray();
     for (const collection of collections) {
       const colName = collection.name;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `${dbName}-${colName}-${timestamp}.json`;
+      const backupPath = getPath(join(BACKUP_DIR, filename));
       try {
-        const documents = await requestDocuments(client.db(), colName, 500);
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const backupPath = getPath(
-          join(BACKUP_DIR, `${dbName}-${colName}-${timestamp}.json`)
-        );
-        write(backupPath, JSON.stringify(documents, null, 2));
+        await storeDocuments(client.db(), colName, 500, backupPath);
         append(
           getPath(LOG_FILE),
           `[${new Date().toISOString()}] Collection: ${colName} Backup completed: ${backupPath}\n`
@@ -156,11 +153,19 @@ console.log(
   ' - ',
   interval
 );
-cron.schedule(interval, async () => {
-  await createBackup();
-  await cleanOldBackups();
-  append(
-    LOG_FILE,
-    `[${new Date().toISOString()}] Scheduled backup completed\n`
-  );
-});
+if(process.env.PROD_QUICKTEST === 'true'){
+  async function test(){
+    await createBackup();
+    await cleanOldBackups();
+  }
+  test();
+}else{
+  cron.schedule(interval, async () => {
+    await createBackup();
+    await cleanOldBackups();
+    append(
+      LOG_FILE,
+      `[${new Date().toISOString()}] Scheduled backup completed\n`
+    );
+  });
+}

@@ -30,8 +30,9 @@ async function storeDocuments(
 ) {
   let hasMoreDocouments = true;
   let page = 0;
+
   while (hasMoreDocouments) {
-    const documents = await db
+    let documents = await db
       .collection(colName)
       .find({})
       .limit(batchSize ?? 500)
@@ -42,6 +43,7 @@ async function storeDocuments(
         backupPath,
         documents.map(doc => JSON.stringify(doc)).join('\n')
       );
+      documents = [];
     }
     hasMoreDocouments = documents.length === batchSize;
     page++;
@@ -58,7 +60,7 @@ async function backupDatabase(dbName: string) {
       const filename = `${dbName}-${colName}-${timestamp}.json`;
       const backupPath = getPath(join(BACKUP_DIR, filename));
       try {
-        await storeDocuments(client.db(), colName, 250, backupPath);
+        await storeDocuments(client.db(), colName, 200, backupPath);
         append(
           getPath(LOG_FILE),
           `[${new Date().toISOString()}] Collection: ${colName} Backup completed: ${backupPath}\n`

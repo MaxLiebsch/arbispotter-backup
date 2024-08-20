@@ -4,7 +4,7 @@ import cron from 'node-cron';
 import {append, cwd, list, inspect, remove, appendAsync} from 'fs-jetpack';
 import {join} from 'path';
 import clientPool from './mongoPool';
-import {Db} from 'mongodb';
+import {Db, MongoClient} from 'mongodb';
 import {RETENTION_DAYS} from './constant';
 
 config({
@@ -50,11 +50,17 @@ async function storeDocuments(
   }
 }
 
+async function* getCollections(client: MongoClient) {
+  const collections = await client.db().listCollections().toArray();
+  for (const collection of collections) {
+    yield collection;
+  }
+}
+
 async function backupDatabase(dbName: string) {
   const client = await clientPool[dbName];
   try {
-    const collections = await client.db().listCollections().toArray();
-    for (const collection of collections) {
+    for await (const collection of getCollections(client)) {
       const colName = collection.name;
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `${dbName}-${colName}-${timestamp}.json`;

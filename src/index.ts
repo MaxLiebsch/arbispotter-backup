@@ -98,7 +98,7 @@ async function backupDatabase(dbName: string) {
       );
     }
   } finally {
-    await client.close();
+    client.close();
     console.log(`Db: ${dbName} Backup completed!`);
     append(
       getPath(LOG_FILE),
@@ -118,9 +118,10 @@ function getPath(path: string) {
 async function createBackup() {
   console.log('Creating backup...');
   try {
-    dbs.forEach(async dbName => {
+    for (let index = 0; index < dbs.length; index++) {
+      const dbName = dbs[index];
       await backupDatabase(dbName);
-    });
+    }
   } catch (error) {
     if (error instanceof Error) {
       append(

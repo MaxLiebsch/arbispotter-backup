@@ -98,7 +98,6 @@ async function backupDatabase(dbName: string) {
       );
     }
   } finally {
-    client.close();
     console.log(`Db: ${dbName} Backup completed!`);
     append(
       getPath(LOG_FILE),

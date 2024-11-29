@@ -30,8 +30,11 @@ async function storeDocuments(
 ) {
   let hasMoreDocouments = true;
   let page = 0;
+  let cnt = 0;
 
-  while (hasMoreDocouments) {
+  const total = await db.collection(colName).countDocuments();
+
+  while (cnt <= total && hasMoreDocouments) {
     let documents = await db
       .collection(colName)
       .find({})
@@ -46,8 +49,10 @@ async function storeDocuments(
       documents = [];
     }
     hasMoreDocouments = documents.length === batchSize;
+    cnt += documents.length;
     page++;
   }
+  return `${cnt} documents backed up from ${total} documents in ${colName}`;
 }
 
 async function* getCollections(client: MongoClient) {
@@ -66,10 +71,15 @@ async function backupDatabase(dbName: string) {
       const filename = `${dbName}-${colName}-${timestamp}.json`;
       const backupPath = getPath(join(BACKUP_DIR, filename));
       try {
-        await storeDocuments(client.db(), colName, 200, backupPath);
+        const result = await storeDocuments(
+          client.db(),
+          colName,
+          200,
+          backupPath
+        );
         append(
           getPath(LOG_FILE),
-          `[${new Date().toISOString()}] Collection: ${colName} Backup completed: ${backupPath}\n`
+          `[${new Date().toISOString()}] Collection: ${colName} Backup completed: ${backupPath} ${result}\n`
         );
       } catch (error) {
         if (error instanceof Error) {

@@ -18,3 +18,13 @@ export const getCrawlDataDb = async () => {
   const client = await clientPool[crawl_data_db];
   return client.db();
 };
+
+export const getDb = async (dbName: 'arbispotter' | 'crawl-data') => {
+  const client = await clientPool[dbName];
+  return client.db();
+};
+
+export const insertMany = async (db: any, colName: string, docs: any[]) => {
+  const collection = db.collection(colName);
+  return collection.insertMany(docs);
+};
